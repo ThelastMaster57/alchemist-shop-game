@@ -1,16 +1,7 @@
 import pygame
 import os
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
 import sys
 import random
-from scenes.shop import ShopScene
-from scenes.brewing import BrewingScene
-from scenes.heroes import HeroesScene
-from scenes.dialogue import DialogueScene
-from scenes.results import ResultsScene
-from scenes.base import BaseScene
-import os
-import sys
 
 # Oyunun çalıştığı dosyanın (game.py) gerçek ve tam klasör yolunu buluyoruz
 base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -18,6 +9,13 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(base_dir)
 
 print(f"[System Check] Aktif çalışma dizini şuraya sabitlendi: {os.getcwd()}")
+
+from scenes.shop import ShopScene
+from scenes.brewing import BrewingScene
+from scenes.heroes import HeroesScene
+from scenes.dialogue import DialogueScene
+from scenes.results import ResultsScene
+from scenes.base import BaseScene
 
 
 # --- YENİ: SİNEMATİK / INTRO SAHNESİ ---
@@ -171,24 +169,24 @@ class StartScene(BaseScene):
         author_font = pygame.font.SysFont("Arial", 14)
 
         # Glow effect shadow
-        lbl_shadow = title_font.render("POTION & ALLIANCE", True, (60, 30, 100))
+        lbl_shadow = title_font.render("İKSİR VE İTTİFAK", True, (60, 30, 100))
         screen.blit(lbl_shadow, (screen.get_width()//2 - lbl_shadow.get_width()//2 + 3, 140 + 3))
 
-        lbl_title = title_font.render("POTION & ALLIANCE", True, (220, 200, 255))
+        lbl_title = title_font.render("İKSİR VE İTTİFAK", True, (220, 200, 255))
         screen.blit(lbl_title, (screen.get_width()//2 - lbl_title.get_width()//2, 140))
 
-        lbl_sub = subtitle_font.render("Alchemist's 3-Day Chronicles", True, (255, 180, 80))
+        lbl_sub = subtitle_font.render("Simyacının 3 Günlük Serüveni", True, (255, 180, 80))
         screen.blit(lbl_sub, (screen.get_width()//2 - lbl_sub.get_width()//2, 200))
 
         # Instructions
         desc_font = pygame.font.SysFont("Arial", 16)
         instr_y = 250
         instructions = [
-            "1. Serve Daily Heroes and Townsfolk by mixing cauldron ingredients.",
-            "2. Keep the temperature needle within the moving target to brew successfully.",
-            "3. Send your Hero companion squads on dangerous day missions.",
-            "4. Talk to them at night, balancing morale, tiredness and affection delta values.",
-            "Complete 3 days to establish your legacy and secure their trust!"
+            "1. Kazanda malzemeleri karıştırarak Kahramanlara ve Kasabalılara hizmet et.",
+            "2. İksiri başarıyla demlemek için ibreyi hareketli hedefin içinde tut.",
+            "3. Kahraman yoldaşlarını tehlikeli günlük görevlere gönder.",
+            "4. Gece onlarla konuşarak moral, yorgunluk ve bağ dengesini sağla.",
+            "Mirasına sahip çıkmak ve güvenlerini kazanmak için 3 günü tamamla!"
         ]
         for line in instructions:
             lbl_line = desc_font.render(line, True, (170, 170, 195))
@@ -204,7 +202,7 @@ class StartScene(BaseScene):
         pygame.draw.rect(screen, (200, 180, 255), self.btn_rect, width=2, border_radius=10)
 
         btn_font = pygame.font.SysFont("Trebuchet MS", 22, bold=True)
-        lbl_btn = btn_font.render("Start Chronicles", True, (255, 255, 255))
+        lbl_btn = btn_font.render("Serüvene Başla", True, (255, 255, 255))
         screen.blit(lbl_btn, (self.btn_rect.centerx - lbl_btn.get_width()//2, self.btn_rect.centery - lbl_btn.get_height()//2))
 
         # Settings Button Drawing
@@ -213,14 +211,14 @@ class StartScene(BaseScene):
         pygame.draw.rect(screen, btn_s_color, self.settings_btn_rect, border_radius=10)
         pygame.draw.rect(screen, (150, 150, 170), self.settings_btn_rect, width=1, border_radius=10)
         
-        lbl_btn_s = btn_font.render("Settings / Audio", True, (230, 230, 240))
+        lbl_btn_s = btn_font.render("Ayarlar / Ses", True, (230, 230, 240))
         screen.blit(lbl_btn_s, (self.settings_btn_rect.centerx - lbl_btn_s.get_width()//2, self.settings_btn_rect.centery - lbl_btn_s.get_height()//2))
 
         # Ayarlar Açıkken Kontrol Butonlarını Çiz
         if self.show_settings:
             # Mevcut Ses Durumu Yazısı
             status_font = pygame.font.SysFont("Arial", 16, bold=True)
-            lbl_vol_status = status_font.render(f"Volume: {int(self.game.volume * 100)}%", True, (255, 200, 100))
+            lbl_vol_status = status_font.render(f"Ses: %{int(self.game.volume * 100)}", True, (255, 200, 100))
             screen.blit(lbl_vol_status, (screen.get_width()//2 - lbl_vol_status.get_width()//2, 530))
             
             # Artır (+), Azalt (-), Sustur (X) Butonları
@@ -233,7 +231,7 @@ class StartScene(BaseScene):
             screen.blit(sign_font.render("-", True, (255,255,255)), (self.vol_down_rect.centerx-5, self.vol_down_rect.centery-12))
             screen.blit(sign_font.render("M", True, (255,255,255)), (self.vol_mute_rect.centerx-7, self.vol_mute_rect.centery-12))
 
-        lbl_auth = author_font.render("Designed with Pygame and dynamic mechanics", True, (80, 80, 100))
+        lbl_auth = author_font.render("Pygame ve dinamik mekaniklerle tasarlandı", True, (80, 80, 100))
         screen.blit(lbl_auth, (screen.get_width()//2 - lbl_auth.get_width()//2, 720))
 
 
@@ -302,7 +300,7 @@ class Game:
             track = self.playlist[self.current_track_index]
             pygame.mixer.music.load(track)
             
-            # Sahneye ve genel ses seviyesine göre hassas ayar
+            # Sahneye ve genel ses seviyesine göre desibel ayarı
             self.update_music_volume()
             
             # 1 kere çalması için tetikliyoruz. Bitince MUSIC_END_EVENT fırlayacak
@@ -318,7 +316,7 @@ class Game:
                 if self.current_scene_name == "dialogue":
                     pygame.mixer.music.set_volume(self.volume * 0.5) # Diyalogda arkaya çek
                 elif self.current_scene_name == "shop":
-                    pygame.mixer.music.set_volume(self.volume * 1.2) # Dükkanda canlandır
+                    pygame.mixer.music.set_volume(min(1.0, self.volume * 1.2)) # Dükkanda canlandır (max 1.0)
                 else:
                     pygame.mixer.music.set_volume(self.volume)
         except:
@@ -355,9 +353,11 @@ class Game:
                 if isinstance(hdata, dict):
                     hdata["on_mission"] = False
                     hdata["chat_completed"] = False
+                    hdata.setdefault("penalty_days", 0)
                 else:
                     hdata.on_mission = False
                     hdata.chat_completed = False
+                    if not hasattr(hdata, "penalty_days"): setattr(hdata, "penalty_days", 0)
 
         self.change_scene("start")
 
@@ -386,12 +386,14 @@ class Game:
                 hdata.setdefault("affection", 50)
                 hdata.setdefault("morale", 50)
                 hdata.setdefault("tired", 0)
+                hdata.setdefault("penalty_days", 0)
             else:
                 if not hasattr(hdata, "on_mission"): setattr(hdata, "on_mission", False)
                 if not hasattr(hdata, "chat_completed"): setattr(hdata, "chat_completed", False)
                 if not hasattr(hdata, "affection"): setattr(hdata, "affection", 50)
                 if not hasattr(hdata, "morale"): setattr(hdata, "morale", 50)
                 if not hasattr(hdata, "tired") and not hasattr(hdata, "tiredness"): setattr(hdata, "tired", 0)
+                if not hasattr(hdata, "penalty_days"): setattr(hdata, "penalty_days", 0)
 
         # Doğrudan dükkan yerine ÖNCE SİNEMATİK SAHNEYİ BAŞLAT kanka!
         self.change_scene("intro")
@@ -399,9 +401,9 @@ class Game:
     def get_fallback_heroes(self):
         """Constructs fallback hero dictionary structure."""
         return {
-            "Aldric": {"affection": 30, "morale": 50, "tired": 20, "on_mission": False, "chat_completed": False},
-            "Seraphel": {"affection": 20, "morale": 60, "tired": 10, "on_mission": False, "chat_completed": False},
-            "Elysia": {"affection": 40, "morale": 45, "tired": 30, "on_mission": False, "chat_completed": False}
+            "Aldric": {"affection": 30, "morale": 50, "tired": 20, "on_mission": False, "chat_completed": False, "penalty_days": 0},
+            "Seraphel": {"affection": 20, "morale": 60, "tired": 10, "on_mission": False, "chat_completed": False, "penalty_days": 0},
+            "Elysia": {"affection": 40, "morale": 45, "tired": 30, "on_mission": False, "chat_completed": False, "penalty_days": 0}
         }
 
     def execute_missions_and_results(self):
@@ -410,7 +412,7 @@ class Game:
         gold_earned = 0
         
         for hname in ["Aldric", "Seraphel", "Elysia"]:
-            hdata = self.runtime_heroes.get(hname)
+            hdata = self.runtime_heroes.get(hname) or self.runtime_heroes.get(hname.lower())
             if not hdata:
                 continue
 
@@ -439,14 +441,18 @@ class Game:
                     mor_chg = 15
                     trd_chg = 25
                     outcome = "SUCCESS"
-                    message = f"{hname} conquered the dungeons, defeating the beast and bringing home {gold_reward} gold!"
+                    message = f"{hname} zindanları fethetti, canavarı alt etti ve {gold_reward} altın getirdi!"
                 else:
                     gold_reward = 0
                     aff_chg = -5
                     mor_chg = -20
                     trd_chg = 35
                     outcome = "FAILURE"
-                    message = f"{hname} encountered a dragon and was forced to flee. They returned wounded and discouraged."
+                    message = f"{hname} görevde başarısız oldu ve yaralandı. İyileşmesi için 1 gün göreve gidemeyecek."
+                    if is_dict:
+                        hdata["penalty_days"] = 1
+                    else:
+                        setattr(hdata, "penalty_days", 1)
                 
                 stats_change = {"affection": aff_chg, "morale": mor_chg, "tiredness": trd_chg}
             else:
@@ -454,7 +460,7 @@ class Game:
                 mor_chg = 5
                 trd_chg = -40
                 outcome = "REST"
-                message = f"{hname} rested in the sanctuary, recuperating their health and reading spellbooks."
+                message = f"{hname} sığınakta dinlendi, sağlığını topladı ve büyü kitapları okudu."
                 stats_change = {"affection": aff_chg, "morale": mor_chg, "tiredness": trd_chg}
 
             new_aff = max(0, min(100, affection + aff_chg))
@@ -490,25 +496,38 @@ class Game:
                 is_dict = isinstance(hdata, dict)
                 aff = hdata.get("affection", 50) if is_dict else getattr(hdata, "affection", 50)
                 title = self.scenes["heroes"].get_relationship_title(aff)
-                r["message"] = f"After 3 days, your bond with {hname} has solidified at {aff}/100 Affection. Your relationship status is: '{title.upper()}'."
+                r["message"] = f"3 günün ardından, {hname} ile bağınız {aff}/100 seviyesinde sağlamlaştı. İlişki durumunuz: '{title.upper()}'."
                 r["stats_change"] = {}
 
             self.scenes["results"].set_results(results, gold_earned, True)
             self.change_scene("results")
             print("[System Check] 3 Günlük macera bitti. Oyun sonu özeti yükleniyor...")
         else:
-            self.advance_day()
+            # Gece raporu verilerini results sahnesine gönderiyoruz
+            self.scenes["results"].set_results(results, gold_earned, is_game_over=is_game_over)
+            # Doğrudan advance_day çağırmak yerine ÖNCE sonuç ekranını (results) gösteriyoruz kanka!
+            self.change_scene("results")
 
     def advance_day(self):
         """Advances cycle days if gold target is met, resets day layouts, and returns to daytime shop."""
-        GOLD_TARGETS = {1: 150, 2: 300, 3: 500}
-        current_target = GOLD_TARGETS.get(self.day_number, 150)
-        
-        if self.gold < current_target:
-            print(f"BAŞARISIZLIK! {self.day_number}. Gün için gereken hedef {current_target} altındı, sende ise {self.gold} altın var.")
-            self.reset_game()
+        daily_quotas = {1: 150, 2: 300, 3: 500}
+        current_quota = daily_quotas.get(self.day_number, 150)
+
+        # 1. KONTROL: KOTA ALTINDA KALDI MI? (KAYBETME)
+        if self.gold < current_quota:
+            print(f"[Game Over] Kota doldurulamadı! Hedef: {current_quota}, Sendeki: {self.gold}")
+            self.scenes["results"].set_results([], 0, is_game_over=True, won=False)
+            self.change_scene("results")
             return
 
+        # 2. KONTROL: 3. GÜN BAŞARIYLA BİTTİ Mİ? (KAZANMA)
+        if self.day_number >= 3:
+            print(f"[Victory] 3 Günlük sınav tamamlandı! Toplam Altın: {self.gold}")
+            self.scenes["results"].set_results([], 0, is_game_over=True, won=True)
+            self.change_scene("results")
+            return
+
+        # 3. DURUM: HER ŞEY YOLUNDA, SONRAKİ GÜNE GEÇİŞ
         self.day_number += 1
         self.phase = "DAY"
         
@@ -518,9 +537,13 @@ class Game:
                 if isinstance(hdata, dict):
                     hdata["on_mission"] = False
                     hdata["chat_completed"] = False
+                    if hdata.get("penalty_days", 0) > 0:
+                        hdata["penalty_days"] -= 1
                 else:
                     hdata.on_mission = False
                     hdata.chat_completed = False
+                    if getattr(hdata, "penalty_days", 0) > 0:
+                        hdata.penalty_days -= 1
 
         self.scenes["shop"].start_day()
         self.change_scene("shop")

@@ -7,9 +7,9 @@ DAILY_HEROES = [
         "intro_lines": [
             "Selam Simyacı, ben Aldric.",
             "Bugün orman devriyesine liderlik edeceğim.",
-            "Güvenliğimiz için bana bir Sağlık İksiri (Health Potion) hazırlamalısın."
+            "Güvenliğimiz için bana bir Sağlık İksiri hazırlamalısın."
         ],
-        "request": "Health Potion",
+        "request": "Sağlık İksiri",
         "reward": 80
     },
     {
@@ -17,9 +17,9 @@ DAILY_HEROES = [
         "intro_lines": [
             "Merhaba Simyacı.",
             "Kriptalardaki gölgeler oldukça hareketli görünüyor.",
-            "Hızlı hareket edebilmek için bir Hız İksiri (Speed Potion) istiyorum."
+            "Hızlı hareket edebilmek için bir Hız İksiri istiyorum."
         ],
-        "request": "Speed Potion",
+        "request": "Hız İksiri",
         "reward": 80
     },
     {
@@ -27,9 +27,9 @@ DAILY_HEROES = [
         "intro_lines": [
             "Selam Simyacı, ben Elysia.",
             "Yarın son büyük savaşa çıkıyoruz.",
-            "Kalkanlarını aşabilmek için bir Güç İksiri (Strength Potion) hazırlamalısın."
+            "Kalkanlarını aşabilmek için bir Güç İksiri hazırlamalısın."
         ],
-        "request": "Strength Potion",
+        "request": "Güç İksiri",
         "reward": 80
     }
 ]
@@ -40,9 +40,9 @@ TOWNSFOLK_POOL = [
         "dialogue_lines": [
             "Kolay gelsin Simyacı.",
             "Bugün örsleri kaldırmak için ekstra güce ihtiyacım var.",
-            "Bana bir Güç İksiri (Strength Potion) verir misin?"
+            "Bana bir Güç İksiri verir misin?"
         ],
-        "request": "Strength Potion",
+        "request": "Güç İksiri",
         "reward": 40
     },
     {
@@ -50,9 +50,9 @@ TOWNSFOLK_POOL = [
         "dialogue_lines": [
             "İyi günler.",
             "Kuzey tepelerini haritalandırıyorum.",
-            "Yolu hızlıca aşmak için Hız İksiri (Speed Potion) alabilir miyim?"
+            "Yolu hızlıca aşmak için Hız İksiri alabilir miyim?"
         ],
-        "request": "Speed Potion",
+        "request": "Hız İksiri",
         "reward": 40
     },
     {
@@ -60,9 +60,9 @@ TOWNSFOLK_POOL = [
         "dialogue_lines": [
             "Merhaba simya ustası.",
             "Malzeme toplarken yoruluyorum.",
-            "Bana bir Sağlık İksiri (Health Potion) yapar mısın?"
+            "Bana bir Sağlık İksiri yapar mısın?"
         ],
-        "request": "Health Potion",
+        "request": "Sağlık İksiri",
         "reward": 40
     }
 ]

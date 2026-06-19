@@ -20,9 +20,9 @@ class DialogueScene(BaseScene):
         
         # Kahraman Sınıfları
         self.hero_classes = {
-            "aldric": "Holy Knight / Vanguard",
-            "seraphel": "High Archmage / Chronomancer",
-            "elysia": "Elven Ranger / Scout Master"
+            "aldric": "Kutsal Şövalye / Öncü",
+            "seraphel": "Yüce Büyücü / Zaman Bükücü",
+            "elysia": "Elf Okçusu / Baş İzci"
         }
         
         # --- RESİMLERİ MUTLAK YOL İLE YÜKLEME ALANI ---
@@ -227,28 +227,16 @@ class DialogueScene(BaseScene):
                 
                 next_node = chosen.get("next", "END")
                 if next_node == "END":
-                    # Chat durumu güncellemesi
+                    # Chat durumu güncellemesi — sohbet tamamlandı olarak işaretle
                     for key in [self.hero_name.capitalize(), self.hero_name]:
                         hdata = self.game.runtime_heroes.get(key)
                         if hdata:
                             if isinstance(hdata, dict): hdata["chat_completed"] = True
                             else: hdata.chat_completed = True
                     
-                    if hasattr(self.game, "night_completed"): self.game.night_completed = True
-                    if hasattr(self.game, "dialogue_completed"): self.game.dialogue_completed = True
-                    
-                    if hasattr(self.game, "next_day"):
-                        self.game.next_day()
-                    elif hasattr(self.game, "complete_night"):
-                        self.game.complete_night()
-                    
-                    if "heroes" in getattr(self.game, "scenes", {}):
-                        self.game.change_scene("heroes")
-                    elif "main_shop" in getattr(self.game, "scenes", {}):
-                        self.game.change_scene("main_shop")
-                    else:
-                        all_scenes = list(getattr(self.game, "scenes", {}).keys())
-                        if all_scenes: self.game.change_scene(all_scenes[0])
+                    # Heroes sahnesine geri dön (Geceyi bitirmek için oradaki butona basılacak)
+                    self.game.change_scene("heroes")
+
                 else:
                     self.current_node = next_node
                     self.selected_index = 0
@@ -290,17 +278,17 @@ class DialogueScene(BaseScene):
         pygame.draw.rect(screen, (110, 80, 180), card_rect, width=2, border_radius=15)
         
         screen.blit(self.title_font.render(self.display_name, True, (255, 255, 255)), (card_rect.x + 20, card_rect.y + 15))
-        h_class = self.hero_classes.get(self.hero_name, "Companion")
-        screen.blit(self.sub_font.render(f"Class: {h_class}", True, (255, 180, 80)), (card_rect.x + 20, card_rect.y + 45))
+        h_class = self.hero_classes.get(self.hero_name, "Yoldaş")
+        screen.blit(self.sub_font.render(f"Sınıf: {h_class}", True, (255, 180, 80)), (card_rect.x + 20, card_rect.y + 45))
 
         img_rect = pygame.Rect(card_rect.x + 20, card_rect.y + 70, 240, 210)
         hero_img = self.hero_images.get(self.hero_name)
         if hero_img: screen.blit(hero_img, img_rect.topleft)
         else: pygame.draw.rect(screen, (22, 18, 40), img_rect, border_radius=10)
 
-        self._draw_mini_bar(screen, card_rect.x + 20, card_rect.y + 295, 240, aff_val, "Affection", (220, 110, 160))
-        self._draw_mini_bar(screen, card_rect.x + 20, card_rect.y + 345, 240, mor_val, "Morale", (100, 180, 220))
-        self._draw_mini_bar(screen, card_rect.x + 20, card_rect.y + 395, 240, trd_val, "Tiredness", (220, 120, 80))
+        self._draw_mini_bar(screen, card_rect.x + 20, card_rect.y + 295, 240, aff_val, "Bağ", (220, 110, 160))
+        self._draw_mini_bar(screen, card_rect.x + 20, card_rect.y + 345, 240, mor_val, "Moral", (100, 180, 220))
+        self._draw_mini_bar(screen, card_rect.x + 20, card_rect.y + 395, 240, trd_val, "Yorgunluk", (220, 120, 80))
 
         # --- PANEL 2: METİN VE SEÇENEKLER ---
         dialogue_rect = pygame.Rect(390, 160, 550, 460)
@@ -344,7 +332,7 @@ class DialogueScene(BaseScene):
                 y_offset += 22
             y_offset += 8 # Seçenek araları boşluğu
 
-        lbl_nav = self.sub_font.render("Use W/S or UP/DOWN Arrow Keys to navigate, press SPACE or ENTER to select.", True, (100, 90, 130))
+        lbl_nav = self.sub_font.render("Gezinmek için W/S veya YÖN TUŞLARINI, seçmek için BOŞLUK veya ENTER'ı kullan.", True, (100, 90, 130))
         screen.blit(lbl_nav, (dialogue_rect.centerx - lbl_nav.get_width()//2, dialogue_rect.bottom - 25))
 
     def _draw_mini_bar(self, screen, x, y, width, value, label, color):

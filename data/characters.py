@@ -20,12 +20,13 @@ HEROES = {
     },
 }
 
+# NOT: Oyundaki affection değerleri 0-100 skalasında saklanıyor.
 AFFECTION_BANDS = [
-    ( 0,  2, "Düşman",   (160,  40,  40), -0.20),
-    ( 3,  4, "Mesafeli", (190, 110,  30), -0.10),
-    ( 5,  6, "Nötr",     (150, 140,  60),  0.00),
-    ( 7,  8, "Dost",     ( 50, 155,  70), +0.10),
-    ( 9, 10, "Sadık",    (200, 160,  40), +0.20),
+    (  0, 20, "Düşman",   (160,  40,  40), -0.20),
+    ( 21, 40, "Mesafeli", (190, 110,  30), -0.10),
+    ( 41, 60, "Nötr",     (150, 140,  60),  0.00),
+    ( 61, 80, "Dost",     ( 50, 155,  70), +0.10),
+    ( 81,100, "Sadık",    (200, 160,  40), +0.20),
 ]
 
 def get_affection_info(score):
@@ -39,8 +40,12 @@ def build_runtime_heroes():
     for key, h in HEROES.items():
         result[key] = {
             **h, "stats": dict(h["stats"]),
-            "alive": True, "on_mission": False, "tired": False,
-            "affection": 5, "morale_bonus": 0.0,
+            "alive": True, "on_mission": False,
+            "tired": 0,        # Integer (0-100), Boolean değil!
+            "morale": 50,      # Başlangıç morali (0-100)
+            "affection": 50,   # 0-100 skalasında başlangıç
+            "morale_bonus": 0.0,
+            "chat_completed": False,
         }
     return result
 

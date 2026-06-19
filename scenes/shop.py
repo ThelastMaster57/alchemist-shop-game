@@ -51,7 +51,7 @@ class ShopScene(BaseScene):
         if not data:
             return {
                 "name": fallback_name,
-                "lines": [f"Greetings. I am {fallback_name}.", f"I require a {fallback_potion}."],
+                "lines": [f"Selamlar. Ben {fallback_name}.", f"Bana bir {fallback_potion} lazım."],
                 "request": fallback_potion,
                 "reward": fallback_reward
             }
@@ -90,7 +90,7 @@ class ShopScene(BaseScene):
                         lines = [val]
                     break
         if not lines:
-            lines = [f"Greetings, Alchemist. I am {name}.", f"I require a potion."]
+            lines = [f"Selamlar Simyacı. Ben {name}.", f"Bana bir iksir lazım."]
             
         # 3. Extract request
         request = ""
@@ -171,14 +171,14 @@ class ShopScene(BaseScene):
             self.customers_queue = [
                 {
                     "name": "Aldric", 
-                    "lines": ["Greetings, Alchemist. I am Aldric.", "I am heading out to clear the Bandit Camp.", "I need a Health Potion to survive the raid."], 
-                    "request": "Health Potion", 
+                    "lines": ["Selam Simyacı. Ben Aldric.", "Haydut Kampını temizlemeye gidiyorum.", "Baskından sağ çıkmak için bir Sağlık İksirine ihtiyacım var."], 
+                    "request": "Sağlık İksiri", 
                     "reward": 80
                 },
                 {
                     "name": "Garrick", 
-                    "lines": ["Hello there.", "My muscles ache from forging armor.", "I need a Strength Potion to keep lifting my hammer."], 
-                    "request": "Strength Potion", 
+                    "lines": ["Merhaba.", "Zırh dövmekten kaslarım ağrıyor.", "Çekicimi kaldırmaya devam etmek için bir Güç İksirine ihtiyacım var."], 
+                    "request": "Güç İksiri", 
                     "reward": 45
                 }
             ]
@@ -229,7 +229,7 @@ class ShopScene(BaseScene):
                             return ", ".join(parts)
         except Exception as e:
             print(f"Error fetching recipe: {e}")
-        return "Unknown Ingredients"
+        return "Bilinmeyen Malzemeler"
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
@@ -302,15 +302,15 @@ class ShopScene(BaseScene):
         pygame.draw.rect(screen, (180, 160, 255), self.heroes_button, width=2, border_radius=8)
         
         hud_font = pygame.font.SysFont("Trebuchet MS", 18, bold=True)
-        lbl_hbtn = hud_font.render("Heroes Roster", True, (255, 255, 255))
+        lbl_hbtn = hud_font.render("Kahramanlar Panosu", True, (255, 255, 255))
         screen.blit(lbl_hbtn, (self.heroes_button.centerx - lbl_hbtn.get_width()//2, self.heroes_button.centery - lbl_hbtn.get_height()//2))
 
         # Gold display
-        lbl_gold = hud_font.render(f"Gold: {self.game.gold}g", True, (255, 200, 50))
+        lbl_gold = hud_font.render(f"Altın: {self.game.gold}", True, (255, 200, 50))
         screen.blit(lbl_gold, (screen.get_width() - lbl_gold.get_width() - 40, 32))
 
         # Day display
-        lbl_day = hud_font.render(f"Day {self.game.day_number} (Shop Phase)", True, (220, 205, 255))
+        lbl_day = hud_font.render(f"Gün {self.game.day_number} (Dükkan Aşaması)", True, (220, 205, 255))
         screen.blit(lbl_day, (screen.get_width() // 2 - lbl_day.get_width() // 2, 32))
 
         # Render Customer Dialogue Box or finished state report
@@ -337,19 +337,19 @@ class ShopScene(BaseScene):
 
             if is_dialogue_finished:
                 # Displays wants to buy
-                req_text = f"Wants to buy: {cust['request']}"
+                req_text = f"Satın almak istediği: {cust['request']}"
                 lbl_req = text_font.render(req_text, True, (255, 180, 80))
                 screen.blit(lbl_req, (self.text_box_rect.x + 20, self.text_box_rect.y + 68))
                 
                 # Displays recipe formula text
                 recipe_info = self.get_recipe_text(cust["request"])
-                recipe_text = f"Recipe: {recipe_info}"
+                recipe_text = f"Tarif: {recipe_info}"
                 lbl_recipe = text_font.render(recipe_text, True, (130, 230, 160))
                 screen.blit(lbl_recipe, (self.text_box_rect.x + 20, self.text_box_rect.y + 88))
             else:
                 # Blink continue indicator
                 if (pygame.time.get_ticks() // 500) % 2 == 0:
-                    lbl_cont = text_font.render("Click here to continue...", True, (150, 140, 180))
+                    lbl_cont = text_font.render("Devam etmek için tıkla...", True, (150, 140, 180))
                     screen.blit(lbl_cont, (self.text_box_rect.right - lbl_cont.get_width() - 20, self.text_box_rect.bottom - 25))
         else:
             # End state indicator
@@ -357,11 +357,11 @@ class ShopScene(BaseScene):
             pygame.draw.rect(screen, (130, 90, 229), self.text_box_rect, width=2, border_radius=12)
             
             text_font = pygame.font.SysFont("Trebuchet MS", 18, bold=True)
-            lbl_status = text_font.render("All customers served for today!", True, (120, 230, 150))
+            lbl_status = text_font.render("Bugün için tüm müşterilere hizmet verildi!", True, (120, 230, 150))
             screen.blit(lbl_status, (self.text_box_rect.centerx - lbl_status.get_width()//2, self.text_box_rect.y + 30))
             
             sub_font = pygame.font.SysFont("Arial", 16)
-            lbl_prompt = sub_font.render("Click here or on Heroes Roster to plan missions.", True, (200, 200, 220))
+            lbl_prompt = sub_font.render("Görevleri planlamak için buraya veya Kahramanlar Panosuna tıkla.", True, (200, 200, 220))
             screen.blit(lbl_prompt, (self.text_box_rect.centerx - lbl_prompt.get_width()//2, self.text_box_rect.y + 65))
 
         # Draw the Cauldron in the center
@@ -397,20 +397,20 @@ class ShopScene(BaseScene):
             recipe_match = None
             
         if recipe_match:
-            lbl_status = status_font.render(f"Cauldron: {recipe_match}", True, (80, 220, 100))
+            lbl_status = status_font.render(f"Kazan: {recipe_match}", True, (80, 220, 100))
         else:
-            lbl_status = status_font.render("Ingredients do not match a known recipe" if self.pot_contents else "Cauldron is empty", True, (180, 180, 200))
+            lbl_status = status_font.render("Malzemeler bilinen bir tarife uymuyor" if self.pot_contents else "Kazan boş", True, (180, 180, 200))
         screen.blit(lbl_status, (self.cauldron_rect.centerx - lbl_status.get_width()//2, self.cauldron_rect.bottom + 15))
 
         # List items in pot
         contents_parts = [f"{count}x {ing}" for ing, count in self.pot_contents.items()]
-        contents_str = "Contents: " + (", ".join(contents_parts) if contents_parts else "Empty")
+        contents_str = "İçindekiler: " + (", ".join(contents_parts) if contents_parts else "Boş")
         lbl_contents = status_font.render(contents_str, True, (240, 240, 255))
         screen.blit(lbl_contents, (self.cauldron_rect.centerx - lbl_contents.get_width()//2, self.cauldron_rect.bottom + 40))
 
         # Ingredients shelf (Locked until dialogue is finished or if no customer remains)
         shelves_title_font = pygame.font.SysFont("Trebuchet MS", 18, bold=True)
-        lbl_shelves = shelves_title_font.render("Ingredients Shelf", True, (220, 210, 250))
+        lbl_shelves = shelves_title_font.render("Malzeme Rafı", True, (220, 210, 250))
         screen.blit(lbl_shelves, (40, 565))
 
         shelf_enabled = is_dialogue_finished and (cust is not None)
@@ -440,7 +440,7 @@ class ShopScene(BaseScene):
         # Lock text if dialogue not finished
         if not shelf_enabled:
             lock_font = pygame.font.SysFont("Trebuchet MS", 14, italic=True)
-            lock_msg = "(Shelf locked - read dialogue to unlock)" if cust else "(No customers remaining)"
+            lock_msg = "(Raf kilitli - açmak için diyaloğu oku)" if cust else "(Bekleyen müşteri yok)"
             lbl_lock = lock_font.render(lock_msg, True, (255, 120, 120))
             screen.blit(lbl_lock, (200, 568))
 
@@ -457,7 +457,7 @@ class ShopScene(BaseScene):
             
         pygame.draw.rect(screen, c_color, self.clear_button, border_radius=10)
         pygame.draw.rect(screen, c_border, self.clear_button, width=2, border_radius=10)
-        lbl_clear = shelves_title_font.render("Clear Pot", True, c_text)
+        lbl_clear = shelves_title_font.render("Kazanı Temizle", True, c_text)
         screen.blit(lbl_clear, (self.clear_button.centerx - lbl_clear.get_width()//2, self.clear_button.centery - lbl_clear.get_height()//2))
 
         # Brew Button
@@ -478,5 +478,5 @@ class ShopScene(BaseScene):
 
         pygame.draw.rect(screen, b_color, self.brew_button, border_radius=10)
         pygame.draw.rect(screen, b_border, self.brew_button, width=2, border_radius=10)
-        lbl_brew = shelves_title_font.render("Brew!", True, b_text)
+        lbl_brew = shelves_title_font.render("Demle!", True, b_text)
         screen.blit(lbl_brew, (self.brew_button.centerx - lbl_brew.get_width()//2, self.brew_button.centery - lbl_brew.get_height()//2))

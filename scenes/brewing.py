@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 import pygame
 import random
 from scenes.base import BaseScene
@@ -26,16 +27,14 @@ class BrewingScene(BaseScene):
 
     def handle_event(self, event):
         if self.game_over and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            shop = self.game.scenes["shop"]
+            shop.pot_contents = {}
             if self.success:
+                # Başarı: gold ver ve sıradaki müşteriye geç
                 self.game.gold += self.customer_data.get("reward", 40)
-                shop = self.game.scenes["shop"]
-                shop.pot_contents = {}
-                shop.current_customer_idx += 1
-                shop.dialogue_page = 0
-                self.game.change_scene("shop")
-            else:
-                self.game.scenes["shop"].pot_contents = {}
-                self.game.change_scene("shop")
+            # Başarı veya başarısızlık fark etmeksizin müşteri gidiyor, bir daha gelmiyor
+            shop.current_customer_idx += 1
+            shop.load_customer()  # Sıradaki müşteriye geç veya kuyruk bittiyse Heroes'a git
 
     def update(self, dt):
         if self.game_over: return
@@ -84,12 +83,17 @@ class BrewingScene(BaseScene):
         if self.game_over:
             overlay = pygame.Surface((1024, 768), pygame.SRCALPHA)
             overlay.fill((0, 0, 0, 200))
-            screen.blit(overlay, (0,0))
+            screen.blit(overlay, (0, 0))
+
             if self.success:
-                res_txt = self.title_font.render("İKSİR BAŞARIYLA ÜRETİLDİ!", True, (100, 255, 100))
-                sub_txt = self.font.render("Altını almak ve sonraki müşteriye geçmek için TIKLA", True, (220, 220, 220))
+                res_txt  = self.title_font.render("İKSİR BAŞARIYLA ÜRETİLDİ!", True, (100, 255, 100))
+                sub_txt  = self.font.render("Altını almak ve sonraki müşteriye geçmek için TIKLA", True, (220, 220, 220))
+                screen.blit(res_txt, (512 - res_txt.get_width() // 2, 310))
+                screen.blit(sub_txt, (512 - sub_txt.get_width() // 2, 370))
             else:
-                res_txt = self.title_font.render("BAŞARISIZ! İksir Taşarak Bozuldu.", True, (255, 100, 100))
-                sub_txt = self.font.render("Dükkana dönmek ve malzemeleri yeniden seçmek için TIKLA", True, (220, 220, 220))
-            screen.blit(res_txt, (340, 320))
-            screen.blit(sub_txt, (290, 380))
+                res_txt  = self.title_font.render("BAŞARISIZ! İksir Taşarak Bozuldu.", True, (255, 100, 100))
+                sub_txt  = self.font.render("Müşteri beklemeye tahammül edemedi ve gitti. (Gold kazanılmadı)", True, (220, 180, 180))
+                sub2_txt = self.font.render("Sonraki müşteriye geçmek için TIKLA", True, (180, 180, 180))
+                screen.blit(res_txt,  (512 - res_txt.get_width()  // 2, 300))
+                screen.blit(sub_txt,  (512 - sub_txt.get_width()  // 2, 360))
+                screen.blit(sub2_txt, (512 - sub2_txt.get_width() // 2, 400))

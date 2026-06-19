@@ -1,360 +1,431 @@
-DAILY_MISSIONS = {
-    1: {"name": "Goblins in the Suburbs", "type": "Combat", "desc": "Requires high Strength/Combat focus. Best suited for Aldric."},
-    2: {"name": "Magical Anomaly Investigation", "type": "Magic", "desc": "Requires high Intellect/Mana focus. Best suited for Seraphel."},
-    3: {"name": "Scouting the Whispering Woods", "type": "Scout", "desc": "Requires high Agility/Speed focus. Best suited for Elysia."}
-}
-
 import pygame
+import math
 from scenes.base import BaseScene
 
+# Günlük görev listesi (gün → görev bilgisi)
+DAILY_MISSIONS = {
+    1: {"name": "Banliyölerde Goblinler", "type": "Savaş", "desc": "Yüksek Güç gerektirir. En iyi: Aldric."},
+    2: {"name": "Büyüsel Anomali Araştırması", "type": "Büyü",  "desc": "Yüksek Zeka gerektirir. En iyi: Seraphel."},
+    3: {"name": "Fısıldayan Orman Keşfi",  "type": "Keşif",  "desc": "Yüksek Çeviklik gerektirir. En iyi: Elysia."}
+}
+
+# --- GÖREV KAPASİTE EŞİKLERİ ---
+TIRED_THRESHOLD  = 70   # Bu değer ve üzeri → göreve gidemez
+MORALE_THRESHOLD = 20   # Bu değer ve altı  → göreve gidemez
+
+
 class HeroesScene(BaseScene):
-    """Nighttime Status & Affection Scene. Shows all three heroes, their metrics, relationship status, and handles missions/chats."""
+    """Hero Roster & Night Management Scene."""
+
     def __init__(self, game):
         super().__init__(game)
-        # Modes: "view" (read-only from shop), "missions" (assigning missions), "chat" (initiating night chats)
-        self.display_mode = "view"
-        
-        # Hero names list
-        self.hero_names = ["Aldric", "Seraphel", "Elysia"]
-        
-        # UI Layout: 3 columns for 3 heroes
-        self.cards = [
-            {"name": "Aldric", "rect": pygame.Rect(50, 180, 280, 420), "color": (45, 95, 150)},
-            {"name": "Seraphel", "rect": pygame.Rect(372, 180, 280, 420), "color": (150, 45, 95)},
-            {"name": "Elysia", "rect": pygame.Rect(694, 180, 280, 420), "color": (95, 150, 45)}
-        ]
-        
-        # Bottom global confirm button
-        self.bottom_button = pygame.Rect(362, 630, 300, 55)
-        self.hero_action_buttons = {}  # hero_name -> button Rect
+        self.display_mode  = "view"
+        self.hero_names    = ["Aldric", "Seraphel", "Elysia"]
+        self.anim_tick     = 0.0   # animasyon sayacı
 
-        for idx, card in enumerate(self.cards):
-            hname = card["name"]
-            self.hero_action_buttons[hname] = pygame.Rect(card["rect"].x + 20, card["rect"].y + 350, 240, 45)
+        # Kart layout
+        self.cards = [
+            {"name": "Aldric",   "rect": pygame.Rect( 50, 175, 290, 440), "color": (45,  95, 160), "accent": (100, 160, 255)},
+            {"name": "Seraphel", "rect": pygame.Rect(367, 175, 290, 440), "color": (140,  35,  95), "accent": (255, 100, 190)},
+            {"name": "Elysia",   "rect": pygame.Rect(684, 175, 290, 440), "color": ( 60, 140,  45), "accent": (120, 230,  80)},
+        ]
+        self.bottom_button      = pygame.Rect(362, 635, 300, 55)
+        self.hero_action_buttons = {}
+        for card in self.cards:
+            r = card["rect"]
+            self.hero_action_buttons[card["name"]] = pygame.Rect(r.x + 25, r.y + 365, 240, 45)
+
+    # ──────────────────────────────────────────────
+    #  YARDIMCI METODLAR
+    # ──────────────────────────────────────────────
 
     def set_mode(self, mode):
-        """Sets the active display mode: 'view', 'missions', or 'chat'."""
         self.display_mode = mode
 
-    def get_relationship_title(self, hero_affection):
+    def _get_stat(self, hdata, *keys):
+        """Dict veya obje üzerinde birden fazla anahtar adıyla güvenli okuma."""
+        is_dict = isinstance(hdata, dict)
+        for k in keys:
+            if is_dict:
+                if k in hdata: return hdata[k]
+            else:
+                if hasattr(hdata, k): return getattr(hdata, k)
+        return 0
+
+    def can_go_on_mission(self, hdata):
+        """
+        Kahramanın göreve çıkıp çıkamayacağını kontrol eder.
+        Returns (bool can_go, str reason)
+        """
+        penalty_days = self._get_stat(hdata, "penalty_days")
+        if penalty_days > 0:
+            return False, f"YARALI ({penalty_days} Gün Dinlenmeli)"
+
+        tired  = self._get_stat(hdata, "tired", "tiredness")
+        morale = self._get_stat(hdata, "morale")
+        if morale == 0:
+            morale = 50  # hiç ayarlanmamışsa varsayılan
+
+        if tired >= TIRED_THRESHOLD:
+            return False, f"ÇOK YORGUN  ({int(tired)}/100)"
+        if morale <= MORALE_THRESHOLD:
+            return False, f"MORALİ ÇÖKMÜŞ  ({int(morale)}/100)"
+        return True, ""
+
+    def get_relationship_title(self, affection):
         try:
-            import data.characters as characters
-            if hasattr(characters, "AFFECTION_BANDS"):
-                bands = characters.AFFECTION_BANDS
-                if isinstance(bands, list):
-                    for band in bands:
-                        if len(band) == 3:
-                            if band[0] <= hero_affection <= band[1]:
-                                return band[2]
-                        elif len(band) == 2:
-                            if hero_affection <= band[0]:
-                                return band[1]
-                elif isinstance(bands, dict):
-                    for threshold in sorted(bands.keys()):
-                        if hero_affection <= threshold:
-                            return bands[threshold]
-        except Exception as e:
-            print(f"Error querying affection bands: {e}")
-            
-        if hero_affection <= 20: return "Wary"
-        elif hero_affection <= 50: return "Associate"
-        elif hero_affection <= 80: return "Trusted Ally"
-        else: return "Oathbound"
+            import data.characters as ch
+            if hasattr(ch, "AFFECTION_BANDS"):
+                for band in ch.AFFECTION_BANDS:
+                    if len(band) >= 3 and band[0] <= affection <= band[1]:
+                        return band[2]
+        except Exception:
+            pass
+        if affection <= 20:  return "Temkinli"
+        if affection <= 50:  return "Tanıdık"
+        if affection <= 80:  return "Güvenilir Dost"
+        return "Yeminli"
 
     def get_success_chance(self, hero_name, title):
-        hero_data = self.game.runtime_heroes.get(hero_name.lower()) if self.game.runtime_heroes else None
-        if not hero_data:
+        hdata = (self.game.runtime_heroes.get(hero_name.lower())
+                 or self.game.runtime_heroes.get(hero_name)) if self.game.runtime_heroes else None
+        if not hdata:
             return 50
-            
-        day_num = getattr(self.game, "day_number", 1)
-        current_mission = DAILY_MISSIONS.get(day_num, {"type": "General"})
-        m_type = current_mission["type"]
-        
-        hero_specialties = {
-            "aldric": "Combat",
-            "seraphel": "Magic",
-            "elysia": "Scout"
-        }
-        
-        if isinstance(hero_data, dict):
-            morale = hero_data.get("morale", 50)
-            tired = hero_data.get("tired", 0) if "tired" in hero_data else hero_data.get("tiredness", 0)
-        else:
-            morale = getattr(hero_data, "morale", 50)
-            tired = getattr(hero_data, "tired", 0) if hasattr(hero_data, "tired") else getattr(hero_data, "tiredness", 0)
-            
+        day_num  = getattr(self.game, "day_number", 1)
+        m_type   = DAILY_MISSIONS.get(day_num, {}).get("type", "Genel")
+        specialties = {"aldric": "Savaş", "seraphel": "Büyü", "elysia": "Keşif"}
+        morale = self._get_stat(hdata, "morale") or 50
+        tired  = self._get_stat(hdata, "tired", "tiredness")
         chance = 50 + (morale // 2) - (tired // 2)
-        
-        if hero_specialties.get(hero_name.lower()) == m_type:
+        if specialties.get(hero_name.lower()) == m_type:
             chance += 30
-            
         return max(10, min(95, chance))
 
+    # ──────────────────────────────────────────────
+    #  EVENT HANDLING
+    # ──────────────────────────────────────────────
+
     def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            mouse_pos = event.pos
-            
-            # --- ÖNCELİK: BÜYÜK ALT CONFIRM BUTONU ---
-            if self.bottom_button.collidepoint(mouse_pos) or (340 <= mouse_pos[0] <= 680 and 610 <= mouse_pos[1] <= 695):
-                
-                if self.display_mode == "view":
-                    # İzleme modundaysa dükkana geri fırlat
-                    for s_name in ["shop", "main_shop", "day_shop"]:
-                        if s_name in getattr(self.game, "scenes", {}):
-                            self.game.change_scene(s_name)
-                            break
-                    return
-                    
-                elif self.display_mode == "missions":
-                    self.game.phase = "NIGHT"
-                    for hname in self.hero_names:
-                        hdata = self.game.runtime_heroes.get(hname.lower()) or self.game.runtime_heroes.get(hname)
-                        if hdata:
-                            if isinstance(hdata, dict):
-                                hdata["chat_completed"] = False
-                            else:
-                                hdata.chat_completed = False
-                    self.set_mode("chat")
-                    print("[SİSTEM] Görevler kilitlendi, Gece Sohbet moduna geçildi.")
-                    return
-                    
-                elif self.display_mode == "chat":
-                    print("[SİSTEM] Geceyi bitir butonuna basıldı, zorunlu güvenli geçiş tetikleniyor...")
-                    
-                    # --- NİHAİ ÇÖZÜM: DOĞRUDAN VE ZORUNLU GEÇİŞ BLOKU ---
-                    # game.py içindeki fonksiyonları tetiklemeyi dene
-                    if hasattr(self.game, "execute_missions_and_results"):
-                        self.game.execute_missions_and_results()
-                    elif hasattr(self.game, "complete_night"):
-                        self.game.complete_night()
-                    elif hasattr(self.game, "next_day"):
-                        self.game.next_day()
-                    
-                    # Güvenlik Kilidi: Eğer üstteki fonksiyonlar çalışsa bile sahne değişmediyse manuel olarak zorla değiştir!
-                    if hasattr(self.game, "day_number"):
-                        self.game.day_number += 1
-                    elif hasattr(self.game, "day"):
-                        self.game.day += 1
-                        
-                    # Döngüyü kırmak için oyunu DAY fazına çekip dükkan sahnelerinden birine paslıyoruz
-                    self.game.phase = "DAY"
-                    for s_name in ["shop", "main_shop", "day_shop"]:
-                        if s_name in getattr(self.game, "scenes", {}):
-                            print(f"[SİSTEM] Manuel olarak '{s_name}' sahnesine geçiş yapılıyor.")
-                            self.game.change_scene(s_name)
-                            break
-                    return
+        if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
+            return
+        mouse_pos = event.pos
 
-            # --- KAHRAMAN KARTLARININ İÇİNDEKİ AKSİYON BUTONLARI ---
-            for card in self.cards:
-                hname = card["name"]
-                hero_data = self.game.runtime_heroes.get(hname.lower()) if self.game.runtime_heroes else None
-                if not hero_data:
-                    continue
-                
-                btn_rect = self.hero_action_buttons[hname]
-                if btn_rect.collidepoint(mouse_pos):
-                    if self.display_mode == "missions":
-                        if isinstance(hero_data, dict):
-                            hero_data["on_mission"] = not hero_data.get("on_mission", False)
-                        else:
-                            hero_data.on_mission = not getattr(hero_data, "on_mission", False)
-                        return
-                    elif self.display_mode == "chat":
-                        already_chatted = hero_data.get("chat_completed", False) if isinstance(hero_data, dict) else getattr(hero_data, "chat_completed", False)
-                        if not already_chatted:
-                            self.game.scenes["dialogue"].start_night_dialogue(hname.lower(), self.game.day_number)
-                            self.game.change_scene("dialogue")
-                            return
-
-    def update(self, dt):
-        pass
-
-    def draw(self, screen):
-        screen.fill((18, 14, 34))
-
-        # Header bar
-        pygame.draw.rect(screen, (35, 25, 65), (0, 0, 1024, 145))
-        pygame.draw.line(screen, (130, 90, 229), (0, 145), (1024, 145), 2)
-
-        title_font = pygame.font.SysFont("Trebuchet MS", 32, bold=True)
-        sub_font = pygame.font.SysFont("Trebuchet MS", 16)
-        
-        mode_titles = {
-            "view": "Companion Status Roster",
-            "missions": "Assign Hero Squad Missions",
-            "chat": "Night Quarter Talks"
-        }
-        
-        lbl_title = title_font.render(mode_titles.get(self.display_mode, "Night Quarter Talks"), True, (220, 205, 255))
-        screen.blit(lbl_title, (40, 15))
-
-        lbl_day = title_font.render(f"Day {getattr(self.game, 'day_number', 1)}", True, (255, 190, 100))
-        screen.blit(lbl_day, (screen.get_width() - lbl_day.get_width() - 40, 15))
-
-        GOLD_TARGETS = {1: 150, 2: 300, 3: 500}
-        current_target = GOLD_TARGETS.get(getattr(self.game, 'day_number', 1), 150)
-        
-        gold_val = getattr(self.game, 'gold', 0)
-        target_color = (100, 255, 120) if gold_val >= current_target else (255, 130, 130)
-        lbl_target = sub_font.render(f"Quota: {gold_val}/{current_target} Gold", True, target_color)
-        screen.blit(lbl_target, (screen.get_width() - lbl_target.get_width() - 40, 55))
-
-        lbl_desc = sub_font.render(
-            "Review companion statistics, toggle mission readiness, or choose who to talk with at night.",
-            True, (170, 160, 195)
-        )
-        screen.blit(lbl_desc, (40, 65))
-
-        day_num = getattr(self.game, "day_number", 1)
-        current_mission = DAILY_MISSIONS.get(day_num, {"name": "Standard Patrol", "type": "General", "desc": "Routine safety checks."})
-        
-        mission_title_font = pygame.font.SysFont("Trebuchet MS", 15, bold=True)
-        mission_desc_font = pygame.font.SysFont("Trebuchet MS", 14, italic=True)
-        
-        pygame.draw.rect(screen, (22, 16, 45), (40, 98, 944, 32), border_radius=6)
-        pygame.draw.rect(screen, (90, 60, 170), (40, 98, 944, 32), width=1, border_radius=6)
-        
-        lbl_m_info = mission_title_font.render(f"ACTIVE MISSION: {current_mission['name']} ({current_mission['type']})", True, (255, 215, 0))
-        lbl_m_desc = mission_desc_font.render(f" -> {current_mission['desc']}", True, (200, 190, 230))
-        
-        screen.blit(lbl_m_info, (55, 104))
-        screen.blit(lbl_m_desc, (60 + lbl_m_info.get_width(), 105))
-
-        h_font = pygame.font.SysFont("Trebuchet MS", 22, bold=True)
-        t_font = pygame.font.SysFont("Trebuchet MS", 16, italic=True)
-        class_font = pygame.font.SysFont("Trebuchet MS", 13, bold=True)
-        m_font = pygame.font.SysFont("Arial", 14, bold=True)
-        status_font = pygame.font.SysFont("Trebuchet MS", 16, bold=True)
-
-        mouse_pos = pygame.mouse.get_pos()
-        hero_classes = {"aldric": "Knight", "seraphel": "Mage", "elysia": "Ranger"}
-
-        for card in self.cards:
-            hname = card["name"]
-            rect = card["rect"]
-            hero_color = card["color"]
-            
-            hero_data = self.game.runtime_heroes.get(hname.lower()) if self.game.runtime_heroes else None
-            
-            if not hero_data:
-                pygame.draw.rect(screen, (25, 25, 30), rect, border_radius=15)
-                pygame.draw.rect(screen, (50, 50, 55), rect, width=2, border_radius=15)
-                lbl_missing = h_font.render(f"Loading {hname}...", True, (120, 120, 130))
-                screen.blit(lbl_missing, (rect.centerx - lbl_missing.get_width()//2, rect.centery - lbl_missing.get_height()//2))
-                continue
-
-            if isinstance(hero_data, dict):
-                affection = hero_data.get("affection", 50)
-                morale = hero_data.get("morale", 50)
-                tired = hero_data.get("tired", 0) if "tired" in hero_data else hero_data.get("tiredness", 0)
-                on_mission = hero_data.get("on_mission", False)
-                chat_completed = hero_data.get("chat_completed", False)
-            else:
-                affection = getattr(hero_data, "affection", 50)
-                morale = getattr(hero_data, "morale", 50)
-                tired = getattr(hero_data, "tired", 0) if hasattr(hero_data, "tired") else getattr(hero_data, "tiredness", 0)
-                on_mission = getattr(hero_data, "on_mission", False)
-                chat_completed = getattr(hero_data, "chat_completed", False)
-
-            title = self.get_relationship_title(affection)
-            success_rate = self.get_success_chance(hname, title)
-
-            pygame.draw.rect(screen, (30, 24, 55), rect, border_radius=15)
-            pygame.draw.rect(screen, (70, 50, 110), rect, width=2, border_radius=15)
-            
-            header_rect = pygame.Rect(rect.x + 2, rect.y + 2, rect.width - 4, 60)
-            pygame.draw.rect(screen, hero_color, header_rect, border_radius=13)
-            pygame.draw.rect(screen, hero_color, (rect.x + 2, rect.y + 50, rect.width - 4, 12))
-
-            lbl_name = h_font.render(hname, True, (255, 255, 255))
-            screen.blit(lbl_name, (rect.x + 20, rect.y + 12))
-            
-            h_type = hero_classes.get(hname.lower(), "Hero")
-            lbl_type = class_font.render(f"[{h_type}]", True, (255, 230, 150))
-            screen.blit(lbl_type, (rect.x + 25 + lbl_name.get_width(), rect.y + 18))
-            
-            lbl_title_rel = t_font.render(title, True, (230, 210, 255))
-            screen.blit(lbl_title_rel, (rect.x + 20, rect.y + 36))
-
-            self._draw_metric_bar(screen, rect.x + 20, rect.y + 85, rect.width - 40, affection, "Affection", (220, 110, 160), m_font)
-            self._draw_metric_bar(screen, rect.x + 20, rect.y + 145, rect.width - 40, morale, "Morale", (100, 180, 220), m_font)
-            self._draw_metric_bar(screen, rect.x + 20, rect.y + 205, rect.width - 40, tired, "Tiredness", (220, 120, 80), m_font)
-
-            if self.display_mode == "missions":
-                status_str = f"Missions: {'ON MISSION' if on_mission else 'RESTING'}"
-                status_color = (255, 140, 50) if on_mission else (80, 220, 100)
-                lbl_status = status_font.render(status_str, True, status_color)
-                screen.blit(lbl_status, (rect.x + 20, rect.y + 270))
-                
-                rate_str = f"Success Chance: {success_rate}%"
-                lbl_rate = status_font.render(rate_str, True, (200, 200, 255))
-                screen.blit(lbl_rate, (rect.x + 20, rect.y + 295))
-            else:
-                chat_str = "Chat: COMPLETED" if chat_completed else "Chat: AVAILABLE"
-                chat_color = (130, 130, 150) if chat_completed else (150, 255, 150)
-                lbl_chat = status_font.render(chat_str, True, chat_color)
-                screen.blit(lbl_chat, (rect.x + 20, rect.y + 270))
-
-                mission_str = "Status: RESTING"
-                if on_mission:
-                    mission_str = f"Status: ON MISSION ({success_rate}% Success)"
-                lbl_mission = status_font.render(mission_str, True, (200, 200, 220))
-                screen.blit(lbl_mission, (rect.x + 20, rect.y + 295))
-
-            btn_rect = self.hero_action_buttons[hname]
-            hover = btn_rect.collidepoint(mouse_pos)
-            
+        # Alt büyük buton
+        if self.bottom_button.collidepoint(mouse_pos):
             if self.display_mode == "view":
-                pygame.draw.rect(screen, (45, 38, 75), btn_rect, border_radius=8)
-                lbl_action = status_font.render(title, True, (180, 170, 210))
-                screen.blit(lbl_action, (btn_rect.centerx - lbl_action.get_width()//2, btn_rect.centery - lbl_action.get_height()//2))
-            
+                if "shop" in getattr(self.game, "scenes", {}):
+                    self.game.change_scene("shop")
+
             elif self.display_mode == "missions":
-                btn_color = (231, 76, 60) if on_mission else (46, 204, 113)
-                if hover:
-                    btn_color = (241, 140, 120) if on_mission else (100, 230, 150)
-                pygame.draw.rect(screen, btn_color, btn_rect, border_radius=8)
-                btn_text = "Rest Hero" if on_mission else "Assign to Mission"
-                lbl_action = status_font.render(btn_text, True, (255, 255, 255) if hover else (10, 20, 10) if not on_mission else (255, 255, 255))
-                screen.blit(lbl_action, (btn_rect.centerx - lbl_action.get_width()//2, btn_rect.centery - lbl_action.get_height()//2))
+                self.game.phase = "NIGHT"
+                for hname in self.hero_names:
+                    hdata = (self.game.runtime_heroes.get(hname.lower())
+                             or self.game.runtime_heroes.get(hname))
+                    if hdata:
+                        if isinstance(hdata, dict): hdata["chat_completed"] = False
+                        else: hdata.chat_completed = False
+                self.set_mode("chat")
+                print("[SİSTEM] Görevler kilitlendi → Gece Sohbet moduna geçildi.")
 
             elif self.display_mode == "chat":
-                if chat_completed:
-                    pygame.draw.rect(screen, (35, 30, 50), btn_rect, border_radius=8)
-                    lbl_action = status_font.render("Already Spoken", True, (110, 110, 130))
+                print("[SİSTEM] Geceyi bitir → görev sonuçları hesaplanıyor...")
+                if hasattr(self.game, "execute_missions_and_results"):
+                    self.game.execute_missions_and_results()
+            return
+
+        # Kahraman kart butonları
+        for card in self.cards:
+            hname     = card["name"]
+            hero_data = (self.game.runtime_heroes.get(hname.lower())
+                         or self.game.runtime_heroes.get(hname)) if self.game.runtime_heroes else None
+            if not hero_data:
+                continue
+            btn_rect = self.hero_action_buttons[hname]
+            if not btn_rect.collidepoint(mouse_pos):
+                continue
+
+            if self.display_mode == "missions":
+                is_dict       = isinstance(hero_data, dict)
+                on_mission    = hero_data.get("on_mission", False) if is_dict else getattr(hero_data, "on_mission", False)
+                can_go, reason = self.can_go_on_mission(hero_data)
+
+                if not on_mission and not can_go:
+                    # Göreve çıkmak istiyor ama ehliyetsiz → reddet
+                    print(f"[BLOK] {hname} göreve gönderilemiyor: {reason}")
+                    return
+
+                # Toggle
+                new_val = not on_mission
+                if is_dict: hero_data["on_mission"] = new_val
+                else: hero_data.on_mission = new_val
+
+            elif self.display_mode == "chat":
+                is_dict        = isinstance(hero_data, dict)
+                already_chatted = (hero_data.get("chat_completed", False) if is_dict
+                                   else getattr(hero_data, "chat_completed", False))
+                if not already_chatted:
+                    self.game.scenes["dialogue"].start_night_dialogue(hname.lower(), self.game.day_number)
+                    self.game.change_scene("dialogue")
+
+    # ──────────────────────────────────────────────
+    #  UPDATE
+    # ──────────────────────────────────────────────
+
+    def update(self, dt):
+        self.anim_tick += dt
+
+    # ──────────────────────────────────────────────
+    #  DRAW
+    # ──────────────────────────────────────────────
+
+    def draw(self, screen):
+        # ── Arka plan ──────────────────────────────
+        screen.fill((12, 10, 26))
+        # Yıldız parıltısı efekti (basit nokta animasyonu)
+        for i in range(30):
+            sx = (i * 137 + 50) % 1024
+            sy = (i * 97  + 30) % 145
+            alpha = int(120 + 80 * math.sin(self.anim_tick * 1.5 + i))
+            star_surf = pygame.Surface((3, 3), pygame.SRCALPHA)
+            star_surf.fill((255, 255, 255, alpha))
+            screen.blit(star_surf, (sx, sy))
+
+        # ── Üst header bar ─────────────────────────
+        header_surf = pygame.Surface((1024, 155), pygame.SRCALPHA)
+        header_surf.fill((28, 20, 58, 230))
+        screen.blit(header_surf, (0, 0))
+        pygame.draw.line(screen, (130, 90, 229), (0, 155), (1024, 155), 2)
+
+        title_font  = pygame.font.SysFont("Trebuchet MS", 30, bold=True)
+        sub_font    = pygame.font.SysFont("Trebuchet MS", 15)
+        badge_font  = pygame.font.SysFont("Trebuchet MS", 13, bold=True)
+
+        mode_titles = {
+            "view":     "⚔  Kahraman Durum Panosu",
+            "missions": "🗺  Günlük Görev Atama",
+            "chat":     "🌙  Gece Sohbetleri"
+        }
+        lbl_title = title_font.render(mode_titles.get(self.display_mode, "Kahraman Panosu"), True, (220, 205, 255))
+        screen.blit(lbl_title, (40, 14))
+
+        day_num = getattr(self.game, "day_number", 1)
+        lbl_day = title_font.render(f"Gün {day_num}", True, (255, 200, 80))
+        screen.blit(lbl_day, (screen.get_width() - lbl_day.get_width() - 40, 14))
+
+        # Kota göstergesi
+        GOLD_TARGETS  = {1: 150, 2: 300, 3: 500}
+        current_target = GOLD_TARGETS.get(day_num, 150)
+        gold_val       = getattr(self.game, "gold", 0)
+        quota_color    = (80, 255, 130) if gold_val >= current_target else (255, 120, 100)
+        lbl_quota = sub_font.render(f"Kota: {gold_val}/{current_target} Altın", True, quota_color)
+        screen.blit(lbl_quota, (screen.get_width() - lbl_quota.get_width() - 40, 55))
+
+        # Aktif görev bilgisi
+        mission      = DAILY_MISSIONS.get(day_num, {"name": "Devriye", "type": "Genel", "desc": ""})
+        mission_surf = pygame.Surface((944, 32), pygame.SRCALPHA)
+        mission_surf.fill((22, 14, 48, 200))
+        screen.blit(mission_surf, (40, 108))
+        pygame.draw.rect(screen, (90, 60, 170), pygame.Rect(40, 108, 944, 32), 1, border_radius=5)
+        m_font = pygame.font.SysFont("Trebuchet MS", 14, bold=True)
+        lbl_m  = m_font.render(f"AKTIF GÖREV:  {mission['name']}  [{mission['type']}]  →  {mission['desc']}", True, (255, 215, 0))
+        screen.blit(lbl_m, (55, 116))
+
+        # ── Hero kartları ───────────────────────────
+        mouse_pos  = pygame.mouse.get_pos()
+        h_font     = pygame.font.SysFont("Trebuchet MS", 21, bold=True)
+        t_font     = pygame.font.SysFont("Trebuchet MS", 14, italic=True)
+        cls_font   = pygame.font.SysFont("Trebuchet MS", 12, bold=True)
+        m_bar_font = pygame.font.SysFont("Arial", 13, bold=True)
+        stat_font  = pygame.font.SysFont("Trebuchet MS", 14, bold=True)
+        warn_font  = pygame.font.SysFont("Trebuchet MS", 13, bold=True)
+        hero_classes = {"aldric": "Şövalye", "seraphel": "Büyücü", "elysia": "Okçu"}
+
+        for card in self.cards:
+            hname      = card["name"]
+            rect       = card["rect"]
+            hero_color = card["color"]
+            accent     = card["accent"]
+
+            hdata = (self.game.runtime_heroes.get(hname.lower())
+                     or self.game.runtime_heroes.get(hname)) if self.game.runtime_heroes else None
+
+            # Yüklenmemişse gri kart
+            if not hdata:
+                pygame.draw.rect(screen, (22, 20, 32), rect, border_radius=14)
+                pygame.draw.rect(screen, (50, 50, 60), rect, 2, border_radius=14)
+                lbl_m = h_font.render(f"{hname} yükleniyor...", True, (100, 100, 110))
+                screen.blit(lbl_m, (rect.centerx - lbl_m.get_width()//2, rect.centery))
+                continue
+
+            is_dict     = isinstance(hdata, dict)
+            affection   = self._get_stat(hdata, "affection") or 50
+            morale      = self._get_stat(hdata, "morale")   or 50
+            tired       = self._get_stat(hdata, "tired", "tiredness")
+            on_mission  = (hdata.get("on_mission", False) if is_dict else getattr(hdata, "on_mission", False))
+            chat_done   = (hdata.get("chat_completed", False) if is_dict else getattr(hdata, "chat_completed", False))
+
+            can_go, incap_reason = self.can_go_on_mission(hdata)
+            title        = self.get_relationship_title(affection)
+            success_rate = self.get_success_chance(hname, title)
+
+            # Kart arka plan
+            pygame.draw.rect(screen, (24, 18, 44), rect, border_radius=14)
+            pygame.draw.rect(screen, accent if on_mission else (60, 48, 90), rect, 2, border_radius=14)
+
+            # Renkli header şeridi
+            header_rect = pygame.Rect(rect.x + 2, rect.y + 2, rect.width - 4, 64)
+            pygame.draw.rect(screen, hero_color, header_rect, border_radius=12)
+            pygame.draw.rect(screen, hero_color, (rect.x + 2, rect.y + 52, rect.width - 4, 14))
+
+            # İsim + sınıf
+            lbl_name = h_font.render(hname, True, (255, 255, 255))
+            screen.blit(lbl_name, (rect.x + 18, rect.y + 12))
+            h_cls = hero_classes.get(hname.lower(), "Kahraman")
+            lbl_cls = cls_font.render(f"[{h_cls}]", True, (255, 230, 140))
+            screen.blit(lbl_cls, (rect.x + 22 + lbl_name.get_width(), rect.y + 18))
+            lbl_rel = t_font.render(title, True, (230, 215, 255))
+            screen.blit(lbl_rel, (rect.x + 18, rect.y + 38))
+
+            # Metrik barlar
+            self._draw_bar(screen, rect.x + 18, rect.y + 88,  rect.width - 36, affection, "Bağ",      (210, 100, 160), m_bar_font)
+            self._draw_bar(screen, rect.x + 18, rect.y + 148, rect.width - 36, morale,    "Moral",    (80,  160, 220), m_bar_font)
+            self._draw_bar(screen, rect.x + 18, rect.y + 208, rect.width - 36, tired,     "Yorgunluk",(220, 110,  70), m_bar_font, inverted=True)
+
+            # Eşik uyarı rozetleri
+            badge_y = rect.y + 272
+            if tired >= TIRED_THRESHOLD:
+                self._draw_badge(screen, rect.x + 18, badge_y, "⚠ ÇOK YORGUN", (200, 80, 40), warn_font)
+                badge_y += 24
+            if morale <= MORALE_THRESHOLD:
+                self._draw_badge(screen, rect.x + 18, badge_y, "⚠ MORALİ ÇÖKMÜŞ", (180, 50, 50), warn_font)
+                badge_y += 24
+
+            # Missions modunda görev/başarı durumu
+            if self.display_mode == "missions":
+                status_str   = "GÖREVDE" if on_mission else ("DİNLENİYOR" if can_go else "KATILIM YOK")
+                status_color = (255, 160, 40) if on_mission else ((100, 230, 100) if can_go else (200, 70, 70))
+                lbl_status = stat_font.render(status_str, True, status_color)
+                screen.blit(lbl_status, (rect.x + 18, rect.y + 318))
+                rate_color = (120, 200, 255) if can_go or on_mission else (120, 120, 130)
+                lbl_rate   = stat_font.render(f"Başarı: %{success_rate}", True, rate_color)
+                screen.blit(lbl_rate, (rect.x + 18, rect.y + 340))
+            else:
+                chat_str   = "Sohbet: YAPILDI" if chat_done else "Sohbet: BEKLİYOR"
+                chat_color = (110, 110, 140) if chat_done else (130, 255, 130)
+                lbl_chat   = stat_font.render(chat_str, True, chat_color)
+                screen.blit(lbl_chat, (rect.x + 18, rect.y + 318))
+                miss_str   = f"Durum: GÖREVDE (%{success_rate})" if on_mission else "Durum: DİNLENİYOR"
+                lbl_miss   = stat_font.render(miss_str, True, (190, 190, 220))
+                screen.blit(lbl_miss, (rect.x + 18, rect.y + 340))
+
+            # On-mission parlama efekti
+            if on_mission:
+                glow_alpha = int(40 + 30 * math.sin(self.anim_tick * 3))
+                glow_surf  = pygame.Surface((rect.width, rect.height), pygame.SRCALPHA)
+                pygame.draw.rect(glow_surf, (*accent, glow_alpha), (0, 0, rect.width, rect.height), border_radius=14)
+                screen.blit(glow_surf, rect.topleft)
+
+            # Aksiyon butonu
+            btn_rect  = self.hero_action_buttons[hname]
+            btn_hover = btn_rect.collidepoint(mouse_pos)
+
+            if self.display_mode == "view":
+                pygame.draw.rect(screen, (38, 32, 62), btn_rect, border_radius=8)
+                pygame.draw.rect(screen, (80, 65, 110), btn_rect, 1, border_radius=8)
+                lbl_btn = stat_font.render(title, True, (170, 160, 200))
+                screen.blit(lbl_btn, (btn_rect.centerx - lbl_btn.get_width()//2, btn_rect.centery - lbl_btn.get_height()//2))
+
+            elif self.display_mode == "missions":
+                if on_mission:
+                    # Görevden çek butonu (her zaman aktif)
+                    btn_col = (220, 80, 60) if btn_hover else (180, 55, 40)
+                    pygame.draw.rect(screen, btn_col, btn_rect, border_radius=8)
+                    pygame.draw.rect(screen, (255, 160, 140), btn_rect, 1, border_radius=8)
+                    lbl_btn = stat_font.render("Görevden Çek", True, (255, 255, 255))
+                    screen.blit(lbl_btn, (btn_rect.centerx - lbl_btn.get_width()//2, btn_rect.centery - lbl_btn.get_height()//2))
+                elif can_go:
+                    # Göreve gönder butonu (aktif)
+                    btn_col = (60, 200, 100) if btn_hover else (40, 160, 75)
+                    pygame.draw.rect(screen, btn_col, btn_rect, border_radius=8)
+                    pygame.draw.rect(screen, (150, 255, 180), btn_rect, 1, border_radius=8)
+                    lbl_btn = stat_font.render("Göreve Gönder", True, (10, 25, 15))
+                    screen.blit(lbl_btn, (btn_rect.centerx - lbl_btn.get_width()//2, btn_rect.centery - lbl_btn.get_height()//2))
                 else:
-                    btn_color = (52, 152, 219) if hover else (41, 128, 185)
-                    pygame.draw.rect(screen, btn_color, btn_rect, border_radius=8)
-                    lbl_action = status_font.render("Talk to Hero", True, (255, 255, 255))
-                screen.blit(lbl_action, (btn_rect.centerx - lbl_action.get_width()//2, btn_rect.centery - lbl_action.get_height()//2))
+                    # Devre dışı — neden gidemediğini göster
+                    pygame.draw.rect(screen, (38, 28, 28), btn_rect, border_radius=8)
+                    pygame.draw.rect(screen, (130, 60, 60), btn_rect, 1, border_radius=8)
+                    short_reason = incap_reason.split("(")[0].strip()
+                    lbl_btn = warn_font.render(short_reason, True, (200, 100, 100))
+                    screen.blit(lbl_btn, (btn_rect.centerx - lbl_btn.get_width()//2, btn_rect.centery - lbl_btn.get_height()//2))
 
-        # Bottom Global Action Button
-        hover_bottom = self.bottom_button.collidepoint(mouse_pos)
-        bottom_color = (255, 170, 80) if hover_bottom else (220, 140, 50)
-        
-        pygame.draw.rect(screen, bottom_color, self.bottom_button, border_radius=10)
-        pygame.draw.rect(screen, (255, 220, 180), self.bottom_button, width=2, border_radius=10)
-        
-        btn_font = pygame.font.SysFont("Trebuchet MS", 20, bold=True)
-        if self.display_mode == "view":
-            bottom_text = "Back to Shop"
-        elif self.display_mode == "missions":
-            bottom_text = "Send Heroes & Start Night"
-        elif self.display_mode == "chat":
-            bottom_text = "Complete Night / Results"
+            elif self.display_mode == "chat":
+                if chat_done:
+                    pygame.draw.rect(screen, (28, 24, 42), btn_rect, border_radius=8)
+                    pygame.draw.rect(screen, (70, 65, 90), btn_rect, 1, border_radius=8)
+                    lbl_btn = stat_font.render("Sohbet Edildi ✓", True, (100, 100, 120))
+                else:
+                    btn_col = (50, 140, 210) if btn_hover else (38, 110, 175)
+                    pygame.draw.rect(screen, btn_col, btn_rect, border_radius=8)
+                    pygame.draw.rect(screen, (130, 200, 255), btn_rect, 1, border_radius=8)
+                    lbl_btn = stat_font.render("Sohbet Et →", True, (255, 255, 255))
+                screen.blit(lbl_btn, (btn_rect.centerx - lbl_btn.get_width()//2, btn_rect.centery - lbl_btn.get_height()//2))
 
-        lbl_bottom = btn_font.render(bottom_text, True, (25, 20, 45) if not hover_bottom else (10, 5, 25))
-        screen.blit(lbl_bottom, (self.bottom_button.centerx - lbl_bottom.get_width()//2, self.bottom_button.centery - lbl_bottom.get_height()//2))
+        # ── Alt büyük buton ─────────────────────────
+        hover_bot  = self.bottom_button.collidepoint(mouse_pos)
+        pulse      = int(8 * math.sin(self.anim_tick * 2.5))
+        bot_col    = (255, 185, 90) if hover_bot else (220, 150, 55)
+        pygame.draw.rect(screen, bot_col, self.bottom_button, border_radius=12)
+        pygame.draw.rect(screen, (255, 230, 160), self.bottom_button, 2, border_radius=12)
 
-    def _draw_metric_bar(self, screen, x, y, width, value, label, bar_color, font):
-        lbl = font.render(f"{label}: {int(value)}/100", True, (200, 200, 220))
+        btn_font = pygame.font.SysFont("Trebuchet MS", 19, bold=True)
+        bot_labels = {
+            "view":     "← Dükkana Dön",
+            "missions": "Gönder & Geceyi Başlat  →",
+            "chat":     "Geceyi Bitir / Sonuçlar  →"
+        }
+        lbl_bot = btn_font.render(bot_labels.get(self.display_mode, "Devam"), True, (20, 12, 5) if hover_bot else (40, 25, 10))
+        screen.blit(lbl_bot, (self.bottom_button.centerx - lbl_bot.get_width()//2,
+                               self.bottom_button.centery - lbl_bot.get_height()//2))
+
+        # Kapasite eşiklerini hatırlatan küçük not
+        note_font = pygame.font.SysFont("Arial", 12, italic=True)
+        lbl_note  = note_font.render(f"  Uyarı: Yorgunluk ≥{TIRED_THRESHOLD} veya Moral ≤{MORALE_THRESHOLD} olan kahramanlar göreve gidemez.", True, (120, 110, 140))
+        screen.blit(lbl_note, (40, 695))
+
+    # ──────────────────────────────────────────────
+    #  YARDIMCI ÇİZİM
+    # ──────────────────────────────────────────────
+
+    def _draw_bar(self, screen, x, y, width, value, label, color, font, inverted=False):
+        """Metrik çubuk çizer. inverted=True → yüksek değer kötü (yorgunluk)."""
+        lbl = font.render(f"{label}: {int(value)}/100", True, (200, 195, 220))
         screen.blit(lbl, (x, y))
 
-        bg_rect = pygame.Rect(x, y + 20, width, 14)
-        pygame.draw.rect(screen, (20, 18, 30), bg_rect, border_radius=4)
-        
-        fill_width = int((value / 100.0) * width)
-        if fill_width > 0:
-            fill_rect = pygame.Rect(x, y + 20, fill_width, 14)
-            pygame.draw.rect(screen, bar_color, fill_rect, border_radius=4)
+        bg = pygame.Rect(x, y + 18, width, 13)
+        pygame.draw.rect(screen, (18, 15, 28), bg, border_radius=4)
+
+        fill_w = int((value / 100.0) * width)
+        if fill_w > 0:
+            # Doluluk rengi: inverted ise yüksek değerde kırmızıya kayar
+            if inverted:
+                r_ratio = value / 100.0
+                draw_color = (
+                    int(color[0] * r_ratio + 60 * (1 - r_ratio)),
+                    int(color[1] * (1 - r_ratio)),
+                    int(color[2] * (1 - r_ratio))
+                )
+            else:
+                draw_color = color
+            pygame.draw.rect(screen, draw_color, pygame.Rect(x, y + 18, fill_w, 13), border_radius=4)
+
+        # Eşik çizgisi (yorgunluk barında kırmızı uyarı çizgisi)
+        if inverted and value >= TIRED_THRESHOLD:
+            tx = x + int((TIRED_THRESHOLD / 100.0) * width)
+            pygame.draw.line(screen, (255, 80, 80), (tx, y + 15), (tx, y + 33), 2)
+
+    def _draw_badge(self, screen, x, y, text, color, font):
+        """Renkli uyarı rozeti çizer."""
+        surf = font.render(text, True, (255, 255, 255))
+        bg   = pygame.Rect(x - 4, y - 2, surf.get_width() + 8, surf.get_height() + 4)
+        pygame.draw.rect(screen, color, bg, border_radius=5)
+        screen.blit(surf, (x, y))

@@ -3,13 +3,13 @@
 INGREDIENTS = ["dragonsblood", "ironbark", "moonflower", "glowmoss", "mistdew", "voidash"]
 
 POTIONS = {
-    "Health Potion": {
+    "Sağlık İksiri": {
         "recipe": ["dragonsblood", "mistdew"]
     },
-    "Speed Potion": {
+    "Hız İksiri": {
         "recipe": ["moonflower", "glowmoss"]
     },
-    "Strength Potion": {
+    "Güç İksiri": {
         "recipe": ["ironbark", "voidash"]
     }
 }
